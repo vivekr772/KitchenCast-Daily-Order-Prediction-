@@ -11,3 +11,4 @@ if ($status) {
 } else {
     Write-Host "No changes to commit. Everything is up to date." -ForegroundColor Yellow
 }
+

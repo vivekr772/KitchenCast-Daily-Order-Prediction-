@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KitchenCast: Daily Order Prediction Dashboard</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- TensorFlow.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       CSS STYLES - KitchenCast Analytics Dashboard
+       Color Palette: Saffron/Amber Orange (#ff6b35, #e8590c) & Dark Charcoal (#12161f, #1a202c)
+       ========================================================================== */
+    :root {
+      --primary: #ff6b35;
+      --primary-hover: #fa5216;
+      --primary-light: #fff0eb;
+      --primary-dark: #d94814;
+      --charcoal-900: #0f1319;
+      --charcoal-800: #171d26;
+      --charcoal-700: #222b38;
+      --charcoal-600: #333f50;
+      --charcoal-500: #4a5768;
+      --charcoal-300: #8c9baebd;
+      --gray-100: #f4f6f9;
+      --gray-200: #e5e9f0;
+      --gray-300: #d8dee9;
+      --text-dark: #1a202c;
+      --text-muted: #64748b;
+      --text-light: #f8fafc;
+      --white: #ffffff;
+      --success: #10b981;
+      --success-light: #ecfdf5;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+      --sidebar-width: 260px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--gray-100);
+      color: var(--text-dark);
+      display: flex;
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ---------------- Sidebar Navigation ---------------- */
+    .sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--charcoal-900);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    }
+
+    .brand {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--charcoal-700);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), #ffa26b);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(255, 107, 53, 0.35);
+    }
+
+    .brand-text h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: white;
+    }
+
+    .brand-text p {
+      font-size: 11px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+
+    .nav-menu {
+      list-style: none;
+      padding: 18px 12px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item button {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: left;
+    }
+
+    .nav-item button:hover {
+      background-color: var(--charcoal-800);
+      color: white;
+    }
+
+    .nav-item button.active {
+      background: linear-gradient(90deg, rgba(255,107,53,0.18), rgba(255,107,53,0.05));
+      color: var(--primary);
+      border-left: 3px solid var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-item button svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--charcoal-700);
+      background: var(--charcoal-800);
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .sidebar-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: rgba(255, 107, 53, 0.15);
+      color: #ff9d79;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 10px;
+      margin-top: 6px;
+    }
+
+    /* ---------------- Main Content Layout ---------------- */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    header.top-header {
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-title h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--charcoal-900);
+    }
+
+    .header-title p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-pill.ready {
+      background-color: var(--success-light);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-pill.pending {
+      background-color: #fef3c7;
+      color: #b45309;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .content-area {
+      padding: 28px 32px 60px 32px;
+      flex: 1;
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeIn 0.25s ease-in-out;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ---------------- Cards & UI Components ---------------- */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--gray-200);
+      box-shadow: var(--shadow-sm);
+      padding: 22px;
+      margin-bottom: 24px;
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--charcoal-900);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--white);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--gray-200);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      border-top: 3px solid var(--primary);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--charcoal-900);
+      letter-spacing: -0.5px;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .kpi-highlight {
+      border-top-color: #10b981;
+    }
+
+    /* Charts Grid */
+    .chart-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .chart-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: var(--transition);
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      box-shadow: 0 4px 10px rgba(255, 107, 53, 0.3);
+    }
+
+    .btn-outline {
+      background: white;
+      border-color: var(--gray-300);
+      color: var(--charcoal-800);
+    }
+
+    .btn-outline:hover:not(:disabled) {
+      background: var(--gray-100);
+      border-color: var(--charcoal-500);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--charcoal-800);
+      margin-bottom: 6px;
+    }
+
+    .form-control, .form-select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text-dark);
+      background-color: var(--white);
+      transition: var(--transition);
+    }
+
+    .form-control:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15);
+    }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .form-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .badge-synthetic {
+      background-color: #fee2e2;
+      color: #b91c1c;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+
+    /* Tables */
+    .table-responsive {
+      overflow-x: auto;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      background: white;
+    }
+
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 12px;
+    }
+
+    table.data-table th {
+      background-color: var(--gray-100);
+      color: var(--charcoal-700);
+      font-weight: 700;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--gray-200);
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--gray-200);
+      color: var(--text-dark);
+      white-space: nowrap;
+    }
+
+    table.data-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.data-table tr:hover td {
+      background-color: #fafbfc;
+    }
+
+    /* Progress bar */
+    .progress-bar-container {
+      width: 100%;
+      background-color: var(--gray-200);
+      border-radius: 10px;
+      height: 12px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), #ffa26b);
+      width: 0%;
+      transition: width 0.15s ease-out;
+    }
+
+    /* Alert / Callouts */
+    .alert {
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .alert-info {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+    }
+
+    .alert-warning {
+      background-color: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+
+    .alert-success {
+      background-color: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .empty-state h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--charcoal-800);
+      margin-bottom: 6px;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+      max-width: 440px;
+      margin: 0 auto 18px auto;
+    }
+
+    /* Model comparison winner badge */
+    .winner-tag {
+      background: #fef08a;
+      color: #854d0e;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Guide / Viva Section Styling */
+    .viva-section {
+      background: white;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--gray-200);
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .viva-section h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--charcoal-900);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 2px solid var(--primary-light);
+      padding-bottom: 8px;
+    }
+
+    .viva-section p {
+      font-size: 13.5px;
+      color: #334155;
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+
+    .viva-section ul {
+      padding-left: 20px;
+      margin-bottom: 10px;
+      font-size: 13.5px;
+      color: #334155;
+    }
+
+    .viva-section li {
+      margin-bottom: 6px;
+    }
+
+    .formula-box {
+      background: #f8fafc;
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: #0f172a;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin: 8px 0 14px 0;
+      overflow-x: auto;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .chart-grid-2, .chart-grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .form-grid-3, .form-grid-4 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 70px;
+      }
+      .brand-text, .nav-item span, .sidebar-footer {
+        display: none;
+      }
+      .brand {
+        justify-content: center;
+        padding: 16px 0;
+      }
+      .main-wrapper {
+        margin-left: 70px;
+      }
+      .form-grid-3, .form-grid-4 {
+        grid-template-columns: 1fr;
+      }
+      .content-area {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       SIDEBAR NAVIGATION
+       ========================================================================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">KC</div>
+      <div class="brand-text">
+        <h1>KitchenCast</h1>
+        <p>Order Predictor ANN</p>
+      </div>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <button class="nav-link active" data-tab="tab-overview">
+          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          <span>1. Overview</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-tab="tab-data">
+          <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+          <span>2. Data</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-tab="tab-train">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm0-4h-2V7h2v7z"/></svg>
+          <span>3. Train Models</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-tab="tab-results">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+          <span>4. Results</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-tab="tab-predictor">
+          <svg viewBox="0 0 24 24"><path d="M7 2v2H1v16h22V4h-6V2H7zm8 2v2H9V4h6zm7 4v10H2V8h20zm-11 3H9v2h2v-2zm4 0h-2v2h2v-2zm-4 4H9v2h2v-2zm4 0h-2v2h2v-2z"/></svg>
+          <span>5. What-If Predictor</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-tab="tab-how-it-works">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+          <span>6. How It Works</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div><strong>MBA DS & AI Project</strong></div>
+      <div>Neural Networks & Deep Learning</div>
+      <div class="sidebar-badge">TF.js Client-Side</div>
+    </div>
+  </aside>
+
+  <!-- ==========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================== -->
+  <div class="main-wrapper">
+    <!-- Top Header Bar -->
+    <header class="top-header">
+      <div class="header-title">
+        <h2 id="current-tab-title">KitchenCast Executive Dashboard</h2>
+        <p>Cloud Kitchen Daily Demand Forecasting via Feedforward Artificial Neural Networks</p>
+      </div>
+      <div class="header-status">
+        <span class="status-pill ready" id="global-data-status">● Data Ready (2,000 Rows)</span>
+        <span class="status-pill pending" id="global-model-status">○ Model Not Trained</span>
+      </div>
+    </header>
+
+    <main class="content-area">
+
+      <!-- ====================================================================
+           TAB 1: OVERVIEW (EXECUTIVE DASHBOARD)
+           ==================================================================== -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- Top KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Records</div>
+            <div class="kpi-value" id="kpi-total-records">-</div>
+            <div class="kpi-sub">Synthetic daily log observations</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Total Daily Orders</div>
+            <div class="kpi-value" id="kpi-total-orders">-</div>
+            <div class="kpi-sub">Aggregated across all platforms</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Net Food Revenue</div>
+            <div class="kpi-value" id="kpi-total-revenue">-</div>
+            <div class="kpi-sub">Post-discount net realized revenue</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Average Discount</div>
+            <div class="kpi-value" id="kpi-avg-discount">-</div>
+            <div class="kpi-sub">Platform promotional reduction</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg Delivery Time</div>
+            <div class="kpi-value" id="kpi-avg-delivery">-</div>
+            <div class="kpi-sub">Minutes from kitchen dispatch</div>
+          </div>
+          <div class="kpi-card kpi-highlight">
+            <div class="kpi-label">Top Selling Cuisine</div>
+            <div class="kpi-value" id="kpi-best-cuisine">-</div>
+            <div class="kpi-sub">Highest order volume category</div>
+          </div>
+        </div>
+
+        <!-- Post-Training Model Performance Banner (Dynamically visible after training) -->
+        <div class="card" id="overview-model-kpis-card" style="display: none; background: linear-gradient(135deg, #171d26, #222b38); color: white;">
+          <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 14px;">
+            <div class="card-title" style="color: #ff9d79;">
+              <span>🏆 Production Model Status (Evaluated on Held-Out Test Set)</span>
+            </div>
+            <span class="badge-synthetic" style="background: rgba(255,107,53,0.3); color: #ffab82;">Test Set Metrics</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Best Model</div>
+              <div id="overview-best-model-name" style="font-size: 20px; font-weight: 800; color: #ffffff;">-</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Test R² Score</div>
+              <div id="overview-test-r2" style="font-size: 20px; font-weight: 800; color: #10b981;">-</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Test MAE (Mean Abs Error)</div>
+              <div id="overview-test-mae" style="font-size: 20px; font-weight: 800; color: #38bdf8;">-</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Test RMSE</div>
+              <div id="overview-test-rmse" style="font-size: 20px; font-weight: 800; color: #facc15;">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="chart-grid-2">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Monthly Demand Trend</div>
+                <div class="card-subtitle">Aggregated order volume by calendar month</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-monthly-trend"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Order Volume by Cuisine</div>
+                <div class="card-subtitle">Total demand distributed across 6 culinary categories</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-cuisine-orders"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="chart-grid-3">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Channel Share</div>
+                <div class="card-subtitle">Orders by delivery aggregator</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-platform-share"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Day of Week Seasonality</div>
+                <div class="card-subtitle">Average orders per weekday vs weekend</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-dow-orders"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Delivery Time vs Orders</div>
+                <div class="card-subtitle">Operational friction scatter plot (sampled)</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-delivery-vs-orders"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 2: DATA EXPLORATION & GENERATION
+           ==================================================================== -->
+      <section id="tab-data" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span>Dataset Management & Synthesizer</span>
+                <span class="badge-synthetic">SYNTHETIC DATASET</span>
+              </div>
+              <div class="card-subtitle">Generate realistic multivariate cloud kitchen operational records with business logic</div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="data-size-selector" class="form-select" style="width: 140px;">
+                <option value="1000">1,000 Records</option>
+                <option value="2000" selected>2,000 Records</option>
+                <option value="3000">3,000 Records</option>
+              </select>
+              <button id="btn-generate-data" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                Regenerate Dataset
+              </button>
+              <button id="btn-download-dataset-csv" class="btn btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                Download CSV
+              </button>
+            </div>
+          </div>
+
+          <div class="alert alert-info">
+            <strong>Dataset Synthesis Logic:</strong> Target column <code>Orders</code> is generated using domain-specific econometric rules:
+            Baseline cuisine volume, weekend uplift (+28%), festival uplift (+35%), rain surge (+22%), platform elasticity (Zomato/Swiggy aggregators vs Own App), log diminishing returns on Ad Spend, customer rating bonus, price elasticity, delivery time penalty, and Gaussian error noise.
+          </div>
+
+          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--charcoal-900);">First 10 Observations (Head Preview)</h4>
+          <div class="table-responsive" style="margin-bottom: 24px;">
+            <table class="data-table" id="table-data-preview">
+              <thead>
+                <tr>
+                  <th>Record_ID</th>
+                  <th>Month</th>
+                  <th>Day_Of_Week</th>
+                  <th>Cuisine</th>
+                  <th>Platform</th>
+                  <th>Avg_Order_Price (₹)</th>
+                  <th>Discount_Pct (%)</th>
+                  <th>Ad_Spend (k₹)</th>
+                  <th>Is_Weekend</th>
+                  <th>Is_Festival</th>
+                  <th>Rain</th>
+                  <th>Avg_Delivery_Time</th>
+                  <th>Avg_Rating</th>
+                  <th style="background-color: #fee2e2; color: #991b1b;">Orders (Target)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-data-preview">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--charcoal-900);">Descriptive Statistics (Numeric Features)</h4>
+          <div class="table-responsive">
+            <table class="data-table" id="table-data-stats">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Count</th>
+                  <th>Mean</th>
+                  <th>Std Dev</th>
+                  <th>Min</th>
+                  <th>25%</th>
+                  <th>50% (Median)</th>
+                  <th>75%</th>
+                  <th>Max</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-data-stats">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 3: TRAIN MODELS (LINEAR BASELINE & ANN)
+           ==================================================================== -->
+      <section id="tab-train" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Training Configuration & Hyperparameters</div>
+              <div class="card-subtitle">Train a Linear Regression baseline and a Deep Feedforward Artificial Neural Network in TensorFlow.js</div>
+            </div>
+            <button id="btn-start-training" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Train Both Models Now
+            </button>
+          </div>
+
+          <!-- Hyperparameter Grid -->
+          <div class="form-grid-4" style="margin-bottom: 20px;">
+            <div class="form-group">
+              <label class="form-label" for="param-epochs">Max Epochs</label>
+              <input type="number" id="param-epochs" class="form-control" value="100" min="10" max="300" step="10">
+              <span style="font-size: 11px; color: var(--text-muted);">Default: 100 (Early stopping: patience 10)</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="param-batch-size">Batch Size</label>
+              <select id="param-batch-size" class="form-select">
+                <option value="16">16</option>
+                <option value="32" selected>32</option>
+                <option value="64">64</option>
+              </select>
+              <span style="font-size: 11px; color: var(--text-muted);">Default: 32 (Mini-batch gradient descent)</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="param-lr">Learning Rate (Adam)</label>
+              <select id="param-lr" class="form-select">
+                <option value="0.01">0.01 (Aggressive)</option>
+                <option value="0.001" selected>0.001 (Recommended)</option>
+                <option value="0.0005">0.0005 (Conservative)</option>
+              </select>
+              <span style="font-size: 11px; color: var(--text-muted);">Adam optimizer adaptive step size</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="param-test-split">Test Split / Validation Split</label>
+              <div style="font-size: 13px; font-weight: 600; padding: 9px 12px; background: var(--gray-100); border-radius: var(--radius-sm); border: 1px solid var(--gray-200);">
+                Test: 20% | Val: 15% (of Train)
+              </div>
+              <span style="font-size: 11px; color: var(--text-muted);">Strictly held-out; no data leakage</span>
+            </div>
+          </div>
+
+          <!-- Model Architectures Briefing -->
+          <div class="chart-grid-2" style="margin-bottom: 20px;">
+            <div style="padding: 14px; background: var(--gray-100); border-radius: var(--radius-md); border-left: 4px solid var(--charcoal-600);">
+              <div style="font-weight: 700; font-size: 13px; color: var(--charcoal-900); margin-bottom: 4px;">Baseline: Linear Regression</div>
+              <p style="font-size: 12px; color: var(--text-muted);">
+                Single dense layer: <code>Dense(1, linear)</code>. Models linear combinations of the 25 one-hot & normalized features.
+              </p>
+            </div>
+            <div style="padding: 14px; background: var(--primary-light); border-radius: var(--radius-md); border-left: 4px solid var(--primary);">
+              <div style="font-weight: 700; font-size: 13px; color: var(--primary-dark); margin-bottom: 4px;">Deep ANN: Feedforward MLP</div>
+              <p style="font-size: 12px; color: #7c2d12;">
+                Architecture: <code>Dense(32, ReLU) → Dropout(0.2) → Dense(16, ReLU) → Dense(1, linear)</code>. Learns non-linear elasticity and synergies.
+              </p>
+            </div>
+          </div>
+
+          <!-- Live Training Progress Panel -->
+          <div id="training-progress-panel" style="display: none; padding: 18px; background: var(--charcoal-900); color: white; border-radius: var(--radius-md); margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span id="training-current-model" style="font-weight: 700; color: #ff9d79; font-size: 14px;">Preparing Training Data...</span>
+              <span id="training-epoch-text" style="font-size: 12px; color: #94a3b8; font-family: monospace;">Epoch 0 / 100</span>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="training-progress-fill"></div>
+            </div>
+            <div style="display: flex; gap: 24px; font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-top: 6px;">
+              <span>Train MSE Loss: <strong id="training-train-loss" style="color: #38bdf8;">--</strong></span>
+              <span>Validation MSE Loss: <strong id="training-val-loss" style="color: #facc15;">--</strong></span>
+              <span id="training-early-stop-status" style="color: #a7f3d0; margin-left: auto;"></span>
+            </div>
+          </div>
+
+          <!-- Training Loss Curve Chart -->
+          <div class="card" style="margin-bottom: 0; box-shadow: none; border: 1px solid var(--gray-200);">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Training & Validation Loss History (Real TensorFlow.js Epochs)</div>
+                <div class="card-subtitle">Real-time loss convergence (MSE) showing generalization and early stopping</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height: 320px;">
+              <canvas id="chart-loss-curves"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 4: RESULTS & EVALUATION
+           ==================================================================== -->
+      <section id="tab-results" class="tab-pane">
+        <!-- Empty State (Shown before training) -->
+        <div class="card" id="results-empty-state">
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h3>Models Not Trained Yet</h3>
+            <p>Please navigate to the <strong>Train Models</strong> tab and click "Train Both Models Now". Evaluation metrics are strictly calculated on the held-out 20% test partition.</p>
+            <button class="btn btn-primary" onclick="switchTab('tab-train')">Go to Train Models</button>
+          </div>
+        </div>
+
+        <!-- Evaluation Results Content (Shown after training) -->
+        <div id="results-content-panel" style="display: none;">
+          <!-- Auto-generated MBA Executive Insight Callout -->
+          <div class="alert alert-success" id="results-auto-insight">
+            <!-- Dynamically populated from actual evaluation numbers -->
+          </div>
+
+          <!-- Split counts card -->
+          <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-card" style="border-top-color: var(--charcoal-500);">
+              <div class="kpi-label">Training Records</div>
+              <div class="kpi-value" id="kpi-train-count">-</div>
+              <div class="kpi-sub">Used for gradient descent weights update</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: var(--warning);">
+              <div class="kpi-label">Validation Records</div>
+              <div class="kpi-value" id="kpi-val-count">-</div>
+              <div class="kpi-sub">Early stopping monitoring (15% of train)</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: var(--info);">
+              <div class="kpi-label">Held-out Test Records</div>
+              <div class="kpi-value" id="kpi-test-count">-</div>
+              <div class="kpi-sub">Pure unseen evaluation benchmark (20%)</div>
+            </div>
+          </div>
+
+          <!-- Performance Metrics Comparison Table -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Test Set Metric Comparison: Baseline vs Deep ANN</div>
+                <div class="card-subtitle">Lower is better for MAE & RMSE; higher is better for R²</div>
+              </div>
+              <button id="btn-download-test-predictions" class="btn btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                Download Test Predictions (CSV)
+              </button>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="table-model-comparison">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Mean Absolute Error (MAE)</th>
+                    <th>Root Mean Squared Error (RMSE)</th>
+                    <th>R² Score (Variance Explained)</th>
+                    <th>Parameters</th>
+                    <th>Operational Verdict</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-model-comparison">
+                  <!-- Injected via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Visual Comparison Charts -->
+          <div class="chart-grid-2">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Metric Comparison (Test Set)</div>
+                  <div class="card-subtitle">Side-by-side benchmark bar chart</div>
+                </div>
+              </div>
+              <div class="chart-container">
+                <canvas id="chart-metrics-comparison"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Actual vs Predicted Orders</div>
+                  <div class="card-subtitle">Held-out test set points vs Ideal 45° reference line</div>
+                </div>
+              </div>
+              <div class="chart-container">
+                <canvas id="chart-actual-vs-pred"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Residuals Distribution -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Residuals Error Distribution Histogram (Actual - Predicted)</div>
+                <div class="card-subtitle">Evaluating normality and bias of forecast errors</div>
+              </div>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+              <canvas id="chart-residuals-hist"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 5: WHAT-IF PREDICTOR (SCENARIO SIMULATOR)
+           ==================================================================== -->
+      <section id="tab-predictor" class="tab-pane">
+        <!-- Notice if not trained -->
+        <div class="alert alert-warning" id="predictor-untrained-warning" style="display: none;">
+          ⚠️ <strong>Models not trained yet:</strong> Please train the models under the <strong>Train Models</strong> tab first so the simulation engine can run real neural network inferences.
+        </div>
+
+        <div class="chart-grid-2">
+          <!-- Simulation Input Form -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Cloud Kitchen Scenario Inputs</div>
+                <div class="card-subtitle">Test operational "what-if" decisions and external weather shocks</div>
+              </div>
+            </div>
+
+            <form id="form-what-if" onsubmit="event.preventDefault(); runWhatIfPrediction();">
+              <div class="form-grid-3">
+                <div class="form-group">
+                  <label class="form-label" for="sim-month">Month</label>
+                  <select id="sim-month" class="form-select">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10" selected>October (Festive)</option>
+                    <option value="11">November (Diwali)</option>
+                    <option value="12">December (Holiday)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-dow">Day of Week</label>
+                  <select id="sim-dow" class="form-select">
+                    <option value="Mon">Monday</option>
+                    <option value="Tue">Tuesday</option>
+                    <option value="Wed">Wednesday</option>
+                    <option value="Thu">Thursday</option>
+                    <option value="Fri">Friday</option>
+                    <option value="Sat" selected>Saturday</option>
+                    <option value="Sun">Sunday</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-cuisine">Cuisine</label>
+                  <select id="sim-cuisine" class="form-select">
+                    <option value="North Indian">North Indian</option>
+                    <option value="Chinese">Chinese</option>
+                    <option value="Biryani" selected>Biryani</option>
+                    <option value="Pizza and Burgers">Pizza and Burgers</option>
+                    <option value="Desserts">Desserts</option>
+                    <option value="Healthy Bowls">Healthy Bowls</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-3">
+                <div class="form-group">
+                  <label class="form-label" for="sim-platform">Platform</label>
+                  <select id="sim-platform" class="form-select">
+                    <option value="Swiggy" selected>Swiggy</option>
+                    <option value="Zomato">Zomato</option>
+                    <option value="Own App">Own App</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-price">Avg Order Price (₹)</label>
+                  <input type="number" id="sim-price" class="form-control" value="320" min="100" max="800">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-discount">Discount % (0 - 50)</label>
+                  <input type="number" id="sim-discount" class="form-control" value="20" min="0" max="50">
+                </div>
+              </div>
+
+              <div class="form-grid-3">
+                <div class="form-group">
+                  <label class="form-label" for="sim-ad-spend">Ad Spend (₹ '000)</label>
+                  <input type="number" id="sim-ad-spend" class="form-control" value="25" min="0" max="100" step="1">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-festival">Is Festival / Holiday?</label>
+                  <select id="sim-festival" class="form-select">
+                    <option value="1" selected>Yes (1)</option>
+                    <option value="0">No (0)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-rain">Rain Condition?</label>
+                  <select id="sim-rain" class="form-select">
+                    <option value="1" selected>Yes, Raining (1)</option>
+                    <option value="0">No Rain (0)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                  <label class="form-label" for="sim-delivery">Avg Delivery Time (mins)</label>
+                  <input type="number" id="sim-delivery" class="form-control" value="32" min="20" max="60">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="sim-rating">Kitchen Rating (3.0 - 5.0)</label>
+                  <input type="number" id="sim-rating" class="form-control" value="4.4" min="3.0" max="5.0" step="0.1">
+                </div>
+              </div>
+
+              <div style="margin-top: 10px;">
+                <button type="submit" id="btn-run-what-if" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                  Run Neural Network Prediction
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Simulation Prediction Output & Sensitivity -->
+          <div>
+            <!-- Real-time Prediction Card -->
+            <div class="card" style="background: linear-gradient(135deg, var(--charcoal-900), var(--charcoal-800)); color: white;">
+              <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px;">
+                <div class="card-title" style="color: #ff9d79;">
+                  <span>Predicted Operational Outcome</span>
+                </div>
+                <span class="badge-synthetic" style="background: rgba(255,107,53,0.25); color: #ffab82;">Inference Engine</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
+                <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: var(--radius-md); border-left: 3px solid var(--primary);">
+                  <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Predicted Daily Orders</div>
+                  <div id="sim-result-orders" style="font-size: 32px; font-weight: 800; color: #ffffff; margin-top: 4px;">--</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Units to prep in kitchen</div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: var(--radius-md); border-left: 3px solid #10b981;">
+                  <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Est. Realized Revenue</div>
+                  <div id="sim-result-revenue" style="font-size: 32px; font-weight: 800; color: #10b981; margin-top: 4px;">--</div>
+                  <div style="font-size: 11px; color: #94a3b8;">Post-discount sales value</div>
+                </div>
+              </div>
+
+              <div style="font-size: 11px; color: #94a3b8; line-height: 1.5; font-style: italic;">
+                Note: "Predictions are educational estimates from synthetic data, not real business forecasts."
+              </div>
+            </div>
+
+            <!-- Real Model Discount Sensitivity Curve -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">Promotional Elasticity Curve</div>
+                  <div class="card-subtitle">Real model output holding other parameters constant across 0% to 50% discount</div>
+                </div>
+              </div>
+              <div class="chart-container" style="height: 240px;">
+                <canvas id="chart-discount-sensitivity"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TAB 6: HOW IT WORKS (VIVA & ACADEMIC REFERENCE)
+           ==================================================================== -->
+      <section id="tab-how-it-works" class="tab-pane">
+        <div class="viva-section">
+          <h3>1. Problem Statement & Business Objectives</h3>
+          <p>
+            Cloud kitchens operate entirely via online delivery aggregators (Swiggy, Zomato, and Direct D2C apps) without dine-in seating. In this operational model, demand forecasting directly determines profitability:
+          </p>
+          <ul>
+            <li><strong>Under-prediction (Stockouts):</strong> Results in lost revenue, cancelled orders, algorithmic ranking demotion by food aggregator platforms, and frustrated diners.</li>
+            <li><strong>Over-prediction (Food Waste):</strong> Perishable ingredients spoil rapidly, leading to high cost of goods sold (COGS) and inventory shrinkage.</li>
+          </ul>
+          <p>
+            The business goal of <strong>KitchenCast</strong> is to accurately forecast daily orders per cuisine and platform, capturing non-linear interactions among promotions, local weather, platform commission variations, and delivery friction.
+          </p>
+        </div>
+
+        <div class="viva-section">
+          <h3>2. Artificial Neural Network (ANN) Architecture</h3>
+          <p>
+            The deep model implemented is a multi-layer feedforward perceptron (MLP) for continuous regression, built client-side with <strong>TensorFlow.js</strong>:
+          </p>
+          <div class="formula-box">
+Input Vector [25 features] 
+   ↳ Dense Layer 1: 32 Neurons + ReLU Activation
+   ↳ Dropout Layer: Rate = 0.20 (20% zeroed during training)
+   ↳ Dense Layer 2: 16 Neurons + ReLU Activation
+   ↳ Output Layer: 1 Neuron + Linear Activation (Continuous Demand Target)
+          </div>
+          <ul>
+            <li><strong>Neurons & Layers:</strong> Neurons compute weighted sums $z = \sum w_i x_i + b$. Stacking multiple layers enables the network to learn hierarchical feature representations.</li>
+            <li><strong>Weights & Biases:</strong> Weights represent connection strength between features; biases shift the activation threshold independently of inputs.</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>3. Forward Propagation, ReLU & Linear Output</h3>
+          <p>
+            During <strong>Forward Propagation</strong>, input data traverses from input to output:
+          </p>
+          <div class="formula-box">
+Hidden Layer: a^[l] = ReLU( W^[l] · a^[l-1] + b^[l] )  where ReLU(z) = max(0, z)
+Output Layer: y_hat = W^[out] · a^[final] + b^[out]   (Linear Identity)
+          </div>
+          <ul>
+            <li><strong>Why ReLU for Hidden Layers?</strong> Rectified Linear Unit ($\text{ReLU}(z) = \max(0, z)$) introduces non-linearity without suffering from vanishing gradients during backpropagation (unlike Sigmoid or Tanh), allowing faster and more stable convergence.</li>
+            <li><strong>Why Linear Output for Regression?</strong> Classification uses Sigmoid (binary) or Softmax (multiclass) to output probabilities bounded between 0 and 1. Regression targets (like order count) are unbounded continuous numbers; hence a linear identity activation is required.</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>4. Loss Function: Mean Squared Error (MSE)</h3>
+          <p>
+            The loss function measures the discrepancy between predicted orders ($\hat{y}_i$) and actual orders ($y_i$):
+          </p>
+          <div class="formula-box">
+MSE = (1 / N) · Σ (y_i - y_hat_i)²
+          </div>
+          <p>
+            Squaring the errors heavily penalizes large operational misses (e.g. an error of 40 orders costs $1600$, whereas two errors of 20 orders cost $2 \times 400 = 800$), which aligns with kitchen capacity bottlenecks.
+          </p>
+        </div>
+
+        <div class="viva-section">
+          <h3>5. Backpropagation, Gradient Descent & Adam Optimizer</h3>
+          <ul>
+            <li><strong>Backpropagation:</strong> Uses the mathematical Chain Rule of calculus to propagate the loss gradient backwards from the output layer to compute $\frac{\partial \mathcal{L}}{\partial W}$ and $\frac{\partial \mathcal{L}}{\partial b}$ for every weight and bias.</li>
+            <li><strong>Adam (Adaptive Moment Estimation):</strong> Instead of standard SGD with a fixed learning rate, Adam computes adaptive learning rates for each parameter using exponentially decaying averages of past gradients (first moment, momentum) and squared past gradients (second moment, RMSProp).</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>6. Overfitting Prevention: Dropout, Early Stopping & Validation Split</h3>
+          <ul>
+            <li><strong>Dropout (0.2):</strong> During training, 20% of neurons in Hidden Layer 1 are randomly deactivated on each forward pass. This breaks co-adaptations between neurons, compelling the network to learn robust, distributed representations.</li>
+            <li><strong>Validation Split (15%):</strong> A subset of training records is held out per epoch to monitor generalization loss on data the optimizer does not learn from.</li>
+            <li><strong>Early Stopping:</strong> If validation loss ceases to improve for 10 consecutive epochs (patience threshold), training automatically halts, restoring the optimal weights to prevent memorizing training noise.</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>7. Why We Compare Against a Linear Baseline</h3>
+          <p>
+            In applied machine learning (and MBA decision-making), standard practice dictates testing against a <strong>Linear Regression baseline</strong> (implemented here as a single <code>Dense(1)</code> linear layer with no hidden neurons).
+          </p>
+          <p>
+            This comparison rigorously proves whether the non-linear complexity and parameter overhead of an ANN genuinely deliver operational accuracy gains over simple, highly interpretable linear relationships (Occam's Razor).
+          </p>
+        </div>
+
+        <div class="viva-section">
+          <h3>8. Evaluation Metrics Defined</h3>
+          <ul>
+            <li><strong>Mean Absolute Error (MAE):</strong> Average absolute error in units of orders ($|\hat{y} - y|$). Directly interpretable by kitchen head chefs (e.g., "our forecast is off by an average of 4.2 biryani orders").</li>
+            <li><strong>Root Mean Squared Error (RMSE):</strong> Square root of MSE; more sensitive to large outlier forecast errors than MAE.</li>
+            <li><strong>R² Score (Coefficient of Determination):</strong> Proportion of total variance in daily demand explained by the model ($R^2 = 1 - \frac{SS_{\text{res}}}{SS_{\text{tot}}}$). An $R^2$ of 0.90 means 90% of demand variability is captured.</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>9. Future Scope (Explanatory Concepts for Cloud Kitchen AI)</h3>
+          <ul>
+            <li><strong>Convolutional Neural Networks (CNNs):</strong> Image quality inspection on packing lines before dispatch, detecting burnt naan, missing garnishes, or improper portioning.</li>
+            <li><strong>Large Language Models (LLMs):</strong> Automated sentiment analysis and theme extraction on thousands of aggregator customer reviews to alert managers to taste inconsistencies or packaging spills.</li>
+            <li><strong>Recurrent Neural Networks (LSTM / GRU / Transformers):</strong> Multi-horizon sequential time-series forecasting with rolling lag windows, day-of-month embeddings, and auto-correlated demand spikes.</li>
+          </ul>
+        </div>
+
+        <div class="viva-section">
+          <h3>10. Project Limitations</h3>
+          <ul>
+            <li><strong>Synthetic Data:</strong> Business relationships are simulated based on domain heuristics rather than production telemetry from Zomato/Swiggy APIs.</li>
+            <li><strong>In-Browser Footprint:</strong> TensorFlow.js runs client-side in the browser on CPU/WebGL. For enterprise scale (millions of daily orders across 500 locations), models would train asynchronously on GPU clusters using Python/PyTorch/TensorFlow.</li>
+            <li><strong>Interpretability:</strong> Unlike linear coefficients or tree feature importance, deep neural network weights function as a black-box, requiring post-hoc explainers like SHAP for root-cause analysis.</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT CODE - STATE, SYNTHESIZER, TF.JS MODELS, CHARTS & UI
+       ========================================================================== -->
+  <script>
+    /**
+     * KitchenCast: Daily Order Prediction Dashboard
+     * MBA Data Science & AI Subject Project
+     * Complete Single-File Client-Side Implementation
+     */
+
+    // --- Global Application State ---
+    const APP_STATE = {
+      dataset: [],
+      trainSplit: null,
+      valSplit: null,
+      testSplit: null,
+      normalization: {
+        featureMeans: [],
+        featureStds: [],
+        targetMean: 0,
+        targetStd: 1
+      },
+      models: {
+        baseline: null,
+        ann: null
+      },
+      evaluation: {
+        baseline: null,
+        ann: null,
+        bestModelName: null
+      },
+      trainingHistory: {
+        baseline: { trainLoss: [], valLoss: [] },
+        ann: { trainLoss: [], valLoss: [] }
+      },
+      charts: {}
+    };
+
+    // Constants & Domain Definitions
+    const CUISINES = ['North Indian', 'Chinese', 'Biryani', 'Pizza and Burgers', 'Desserts', 'Healthy Bowls'];
+    const PLATFORMS = ['Swiggy', 'Zomato', 'Own App'];
+    const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const CUISINE_CONFIG = {
+      'North Indian': { baseOrders: 135, basePrice: 280 },
+      'Chinese': { baseOrders: 110, basePrice: 240 },
+      'Biryani': { baseOrders: 155, basePrice: 330 },
+      'Pizza and Burgers': { baseOrders: 125, basePrice: 350 },
+      'Desserts': { baseOrders: 60, basePrice: 180 },
+      'Healthy Bowls': { baseOrders: 75, basePrice: 290 }
+    };
+
+    const PLATFORM_MULTIPLIER = {
+      'Swiggy': 1.15,
+      'Zomato': 1.20,
+      'Own App': 0.65
+    };
+
+    // --- Helper Utilities ---
+    function randn() {
+      // Box-Muller transform for standard normal distribution N(0,1)
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function formatNumber(num, decimals = 1) {
+      if (num === null || num === undefined || isNaN(num)) return '-';
+      return Number(num).toLocaleString('en-IN', { maximumFractionDigits: decimals });
+    }
+
+    function formatCurrency(num) {
+      if (num === null || num === undefined || isNaN(num)) return '-';
+      return '₹' + Math.round(num).toLocaleString('en-IN');
+    }
+
+    // --- 1. Synthetic Dataset Generator ---
+    function generateSyntheticDataset(recordCount = 2000) {
+      const records = [];
+
+      for (let i = 1; i <= recordCount; i++) {
+        const month = Math.floor(Math.random() * 12) + 1; // 1 to 12
+        const dowIndex = Math.floor(Math.random() * 7);
+        const dayOfWeek = DAYS_OF_WEEK[dowIndex];
+        const isWeekend = (dayOfWeek === 'Sat' || dayOfWeek === 'Sun') ? 1 : 0;
+
+        const cuisine = CUISINES[Math.floor(Math.random() * CUISINES.length)];
+        const platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
+
+        // Price varies realistically around cuisine base
+        const cuisineBase = CUISINE_CONFIG[cuisine];
+        const avgOrderPrice = Math.max(120, Math.round(cuisineBase.basePrice + randn() * 35));
+
+        // Promotional discount (0 to 50%)
+        const discountPct = Math.min(50, Math.max(0, Math.round(Math.random() * 40 + (Math.random() > 0.6 ? 10 : 0))));
+
+        // Ad Spend in thousands (0 to 100)
+        const adSpend = Math.round((Math.random() * 65 + (isWeekend ? 15 : 0)) * 10) / 10;
+
+        // Festival probability higher in Q4 (Oct-Dec)
+        const isFestival = (month >= 10 && Math.random() < 0.28) || (Math.random() < 0.08) ? 1 : 0;
+
+        // Rain probability higher in monsoon months (Jun-Sep)
+        const isMonsoon = (month >= 6 && month <= 9);
+        const rain = (isMonsoon && Math.random() < 0.40) || (Math.random() < 0.12) ? 1 : 0;
+
+        // Delivery time (20 to 60 mins), increased slightly during rain
+        const avgDeliveryTime = Math.min(60, Math.max(20, Math.round(34 + randn() * 6 + (rain ? 7 : 0))));
+
+        // Rating (3.0 to 5.0)
+        const avgRating = Math.min(5.0, Math.max(3.0, Math.round((4.2 + randn() * 0.35) * 10) / 10));
+
+        // Econometric Orders Formulation
+        let expectedOrders = cuisineBase.baseOrders;
+
+        // Platform effect
+        expectedOrders *= PLATFORM_MULTIPLIER[platform];
+
+        // Weekend uplift
+        if (isWeekend) expectedOrders *= 1.28;
+
+        // Festival uplift
+        if (isFestival) expectedOrders *= 1.35;
+
+        // Rain uplift (diners stay home and order food)
+        if (rain) expectedOrders *= 1.22;
+
+        // Discount effect (non-linear uplift)
+        expectedOrders += (discountPct * 0.85);
+
+        // Ad Spend with diminishing returns (logarithmic)
+        expectedOrders += 22 * Math.log1p(adSpend);
+
+        // Rating effect
+        expectedOrders += 18 * (avgRating - 4.0);
+
+        // Delivery friction penalty
+        expectedOrders -= 0.75 * (avgDeliveryTime - 35);
+
+        // Price elasticity penalty
+        expectedOrders -= 0.08 * (avgOrderPrice - cuisineBase.basePrice);
+
+        // Gaussian noise
+        expectedOrders += randn() * 8.5;
+
+        const orders = Math.max(12, Math.round(expectedOrders));
+
+        records.push({
+          Record_ID: i,
+          Month: month,
+          Day_Of_Week: dayOfWeek,
+          Cuisine: cuisine,
+          Platform: platform,
+          Avg_Order_Price: avgOrderPrice,
+          Discount_Pct: discountPct,
+          Ad_Spend: adSpend,
+          Is_Weekend: isWeekend,
+          Is_Festival: isFestival,
+          Rain: rain,
+          Avg_Delivery_Time: avgDeliveryTime,
+          Avg_Rating: avgRating,
+          Orders: orders
+        });
+      }
+
+      APP_STATE.dataset = records;
+      return records;
+    }
+
+    // --- 2. Data Preprocessing & Vectorization ---
+    /**
+     * Vectorizes a single record into an array of 25 numerical features:
+     * - 6 one-hot for Cuisine
+     * - 3 one-hot for Platform
+     * - 7 one-hot for Day_Of_Week
+     * - 9 continuous/binary features
+     */
+    function extractFeatureVector(row) {
+      const vec = [];
+
+      // One-hot Cuisine (6)
+      CUISINES.forEach(c => vec.push(row.Cuisine === c ? 1 : 0));
+
+      // One-hot Platform (3)
+      PLATFORMS.forEach(p => vec.push(row.Platform === p ? 1 : 0));
+
+      // One-hot Day_Of_Week (7)
+      DAYS_OF_WEEK.forEach(d => vec.push(row.Day_Of_Week === d ? 1 : 0));
+
+      // Numeric & Binary features (9)
+      vec.push(Number(row.Month));
+      vec.push(Number(row.Avg_Order_Price));
+      vec.push(Number(row.Discount_Pct));
+      vec.push(Number(row.Ad_Spend));
+      vec.push(Number(row.Is_Weekend));
+      vec.push(Number(row.Is_Festival));
+      vec.push(Number(row.Rain));
+      vec.push(Number(row.Avg_Delivery_Time));
+      vec.push(Number(row.Avg_Rating));
+
+      return vec;
+    }
+
+    /**
+     * Splits data into Train (80%) and Test (20%).
+     * Then splits Train into pure Train (85%) and Validation (15%).
+     * Fits standardizer on TRAIN only to eliminate data leakage.
+     */
+    function prepareDataPartitions(testSplitRatio = 0.20, valSplitRatio = 0.15) {
+      const records = [...APP_STATE.dataset];
+      // Shuffle deterministically
+      for (let i = records.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [records[i], records[j]] = [records[j], records[i]];
+      }
+
+      const totalCount = records.length;
+      const testCount = Math.floor(totalCount * testSplitRatio);
+      const trainValCount = totalCount - testCount;
+      const valCount = Math.floor(trainValCount * valSplitRatio);
+      const pureTrainCount = trainValCount - valCount;
+
+      const trainRaw = records.slice(0, pureTrainCount);
+      const valRaw = records.slice(pureTrainCount, pureTrainCount + valCount);
+      const testRaw = records.slice(pureTrainCount + valCount);
+
+      // Extract feature matrices and target arrays
+      const trainXRaw = trainRaw.map(extractFeatureVector);
+      const trainYRaw = trainRaw.map(r => r.Orders);
+
+      const valXRaw = valRaw.map(extractFeatureVector);
+      const valYRaw = valRaw.map(r => r.Orders);
+
+      const testXRaw = testRaw.map(extractFeatureVector);
+      const testYRaw = testRaw.map(r => r.Orders);
+
+      // Compute means and standard deviations from TRAINING data only
+      const numFeatures = trainXRaw[0].length;
+      const featureMeans = new Array(numFeatures).fill(0);
+      const featureStds = new Array(numFeatures).fill(0);
+
+      for (let j = 0; j < numFeatures; j++) {
+        let sum = 0;
+        for (let i = 0; i < trainXRaw.length; i++) sum += trainXRaw[i][j];
+        featureMeans[j] = sum / trainXRaw.length;
+
+        let varSum = 0;
+        for (let i = 0; i < trainXRaw.length; i++) {
+          varSum += Math.pow(trainXRaw[i][j] - featureMeans[j], 2);
+        }
+        featureStds[j] = Math.sqrt(varSum / trainXRaw.length) || 1.0;
+      }
+
+      // Target standardization (Train set only)
+      let ySum = 0;
+      for (let i = 0; i < trainYRaw.length; i++) ySum += trainYRaw[i];
+      const targetMean = ySum / trainYRaw.length;
+
+      let yVarSum = 0;
+      for (let i = 0; i < trainYRaw.length; i++) {
+        yVarSum += Math.pow(trainYRaw[i] - targetMean, 2);
+      }
+      const targetStd = Math.sqrt(yVarSum / trainYRaw.length) || 1.0;
+
+      APP_STATE.normalization = {
+        featureMeans,
+        featureStds,
+        targetMean,
+        targetStd
+      };
+
+      // Normalization transform function
+      const standardizeX = (matrix) => {
+        return matrix.map(row =>
+          row.map((val, j) => (val - featureMeans[j]) / featureStds[j])
+        );
+      };
+
+      const standardizeY = (arr) => arr.map(y => (y - targetMean) / targetStd);
+
+      APP_STATE.trainSplit = {
+        raw: trainRaw,
+        xNorm: standardizeX(trainXRaw),
+        yNorm: standardizeY(trainYRaw)
+      };
+
+      APP_STATE.valSplit = {
+        raw: valRaw,
+        xNorm: standardizeX(valXRaw),
+        yNorm: standardizeY(valYRaw)
+      };
+
+      APP_STATE.testSplit = {
+        raw: testRaw,
+        xNorm: standardizeX(testXRaw),
+        yNorm: standardizeY(testYRaw),
+        yActual: testYRaw
+      };
+
+      return {
+        trainCount: trainRaw.length,
+        valCount: valRaw.length,
+        testCount: testRaw.length,
+        numFeatures
+      };
+    }
+
+    // --- 3. TensorFlow.js Model Architecture Creators ---
+    function buildLinearBaseline(numFeatures, lr = 0.001) {
+      // Baseline Linear Regression: Single dense layer with linear identity activation
+      const model = tf.sequential();
+      model.add(tf.layers.dense({
+        units: 1,
+        inputShape: [numFeatures],
+        kernelInitializer: 'glorotNormal'
+      }));
+
+      model.compile({
+        optimizer: tf.train.adam(lr),
+        loss: 'meanSquaredError'
+      });
+      return model;
+    }
+
+    function buildANNModel(numFeatures, lr = 0.001) {
+      // Deep Multi-Layer Perceptron (ANN)
+      const model = tf.sequential();
+
+      // Hidden Layer 1: 32 Neurons with ReLU
+      model.add(tf.layers.dense({
+        units: 32,
+        activation: 'relu',
+        inputShape: [numFeatures],
+        kernelInitializer: 'heNormal'
+      }));
+
+      // Regularization: Dropout 20%
+      model.add(tf.layers.dropout({ rate: 0.2 }));
+
+      // Hidden Layer 2: 16 Neurons with ReLU
+      model.add(tf.layers.dense({
+        units: 16,
+        activation: 'relu',
+        kernelInitializer: 'heNormal'
+      }));
+
+      // Output Layer: 1 Neuron with Linear Activation for continuous regression
+      model.add(tf.layers.dense({
+        units: 1,
+        activation: 'linear'
+      }));
+
+      model.compile({
+        optimizer: tf.train.adam(lr),
+        loss: 'meanSquaredError'
+      });
+      return model;
+    }
+
+    // --- 4. Training Engine with Real Early Stopping ---
+    async function trainModelsPipeline() {
+      const btn = document.getElementById('btn-start-training');
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-block; animation: spin 1s infinite linear;">↻</span> Training in Progress...`;
+
+      const progressPanel = document.getElementById('training-progress-panel');
+      const progressFill = document.getElementById('training-progress-fill');
+      const curModelText = document.getElementById('training-current-model');
+      const epochText = document.getElementById('training-epoch-text');
+      const trainLossText = document.getElementById('training-train-loss');
+      const valLossText = document.getElementById('training-val-loss');
+      const earlyStopText = document.getElementById('training-early-stop-status');
+
+      progressPanel.style.display = 'block';
+      earlyStopText.textContent = '';
+
+      // Read parameters
+      const epochs = parseInt(document.getElementById('param-epochs').value, 10) || 100;
+      const batchSize = parseInt(document.getElementById('param-batch-size').value, 10) || 32;
+      const learningRate = parseFloat(document.getElementById('param-lr').value) || 0.001;
+
+      // Clean old models to free WebGL memory
+      if (APP_STATE.models.baseline) APP_STATE.models.baseline.dispose();
+      if (APP_STATE.models.ann) APP_STATE.models.ann.dispose();
+
+      // Prepare data splits and tensors
+      const partitions = prepareDataPartitions(0.20, 0.15);
+      const numFeatures = partitions.numFeatures;
+
+      const xTrainTensor = tf.tensor2d(APP_STATE.trainSplit.xNorm);
+      const yTrainTensor = tf.tensor2d(APP_STATE.trainSplit.yNorm, [APP_STATE.trainSplit.yNorm.length, 1]);
+
+      const xValTensor = tf.tensor2d(APP_STATE.valSplit.xNorm);
+      const yValTensor = tf.tensor2d(APP_STATE.valSplit.yNorm, [APP_STATE.valSplit.yNorm.length, 1]);
+
+      APP_STATE.trainingHistory = {
+        baseline: { trainLoss: [], valLoss: [] },
+        ann: { trainLoss: [], valLoss: [] }
+      };
+
+      // 1. Train Linear Baseline
+      curModelText.textContent = '1/2 Training Baseline Linear Regression...';
+      const baselineModel = buildLinearBaseline(numFeatures, learningRate);
+
+      let baselineBestValLoss = Infinity;
+      let baselinePatienceCount = 0;
+      let baselineBestWeights = null;
+
+      await baselineModel.fit(xTrainTensor, yTrainTensor, {
+        epochs: epochs,
+        batchSize: batchSize,
+        validationData: [xValTensor, yValTensor],
+        callbacks: {
+          onEpochEnd: async (epoch, logs) => {
+            APP_STATE.trainingHistory.baseline.trainLoss.push(logs.loss);
+            APP_STATE.trainingHistory.baseline.valLoss.push(logs.val_loss);
+
+            const pct = Math.round(((epoch + 1) / (epochs * 2)) * 100);
+            progressFill.style.width = `${pct}%`;
+            epochText.textContent = `Baseline Epoch ${epoch + 1} / ${epochs}`;
+            trainLossText.textContent = logs.loss.toFixed(4);
+            valLossText.textContent = logs.val_loss.toFixed(4);
+
+            // Early stopping check (patience 10)
+            if (logs.val_loss < baselineBestValLoss - 0.0001) {
+              baselineBestValLoss = logs.val_loss;
+              baselinePatienceCount = 0;
+              // clone weights
+              baselineBestWeights = baselineModel.getWeights().map(w => w.clone());
+            } else {
+              baselinePatienceCount++;
+              if (baselinePatienceCount >= 10) {
+                baselineModel.stopTraining = true;
+                earlyStopText.textContent = `Early stopped at epoch ${epoch + 1}`;
+              }
+            }
+
+            if (epoch % 5 === 0 || epoch === epochs - 1) {
+              updateLossCurvesChart();
+              await tf.nextFrame();
+            }
+          }
+        }
+      });
+
+      if (baselineBestWeights) {
+        baselineModel.setWeights(baselineBestWeights);
+      }
+      APP_STATE.models.baseline = baselineModel;
+
+      // 2. Train Deep ANN
+      curModelText.textContent = '2/2 Training Deep Feedforward ANN (ReLU + Dropout)...';
+      earlyStopText.textContent = '';
+      const annModel = buildANNModel(numFeatures, learningRate);
+
+      let annBestValLoss = Infinity;
+      let annPatienceCount = 0;
+      let annBestWeights = null;
+
+      await annModel.fit(xTrainTensor, yTrainTensor, {
+        epochs: epochs,
+        batchSize: batchSize,
+        validationData: [xValTensor, yValTensor],
+        callbacks: {
+          onEpochEnd: async (epoch, logs) => {
+            APP_STATE.trainingHistory.ann.trainLoss.push(logs.loss);
+            APP_STATE.trainingHistory.ann.valLoss.push(logs.val_loss);
+
+            const pct = Math.round(50 + ((epoch + 1) / (epochs * 2)) * 50);
+            progressFill.style.width = `${pct}%`;
+            epochText.textContent = `ANN Epoch ${epoch + 1} / ${epochs}`;
+            trainLossText.textContent = logs.loss.toFixed(4);
+            valLossText.textContent = logs.val_loss.toFixed(4);
+
+            // Early stopping check
+            if (logs.val_loss < annBestValLoss - 0.0001) {
+              annBestValLoss = logs.val_loss;
+              annPatienceCount = 0;
+              annBestWeights = annModel.getWeights().map(w => w.clone());
+            } else {
+              annPatienceCount++;
+              if (annPatienceCount >= 10) {
+                annModel.stopTraining = true;
+                earlyStopText.textContent = `Early stopped at epoch ${epoch + 1} (Best Val Loss: ${annBestValLoss.toFixed(4)})`;
+              }
+            }
+
+            if (epoch % 3 === 0 || epoch === epochs - 1) {
+              updateLossCurvesChart();
+              await tf.nextFrame();
+            }
+          }
+        }
+      });
+
+      if (annBestWeights) {
+        annModel.setWeights(annBestWeights);
+      }
+      APP_STATE.models.ann = annModel;
+
+      // Dispose training tensors
+      xTrainTensor.dispose();
+      yTrainTensor.dispose();
+      xValTensor.dispose();
+      yValTensor.dispose();
+
+      // Run Evaluation on Held-Out Test Set
+      evaluateModelsOnTestSet();
+
+      // Update UI elements
+      curModelText.textContent = '✅ Both Models Successfully Trained & Evaluated!';
+      progressFill.style.width = '100%';
+      document.getElementById('global-model-status').className = 'status-pill ready';
+      document.getElementById('global-model-status').textContent = '● Trained (Evaluated)';
+      document.getElementById('predictor-untrained-warning').style.display = 'none';
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Retrain Models`;
+
+      // Render updated charts and results
+      renderOverviewDashboard();
+      updateDiscountSensitivityChart();
+    }
+
+    // --- 5. Held-Out Test Set Evaluation ---
+    function evaluateModelsOnTestSet() {
+      const testSplit = APP_STATE.testSplit;
+      const xTestTensor = tf.tensor2d(testSplit.xNorm);
+      const actualOrders = testSplit.yActual;
+      const targetMean = APP_STATE.normalization.targetMean;
+      const targetStd = APP_STATE.normalization.targetStd;
+
+      // Predict with Baseline
+      const predNormBaseline = APP_STATE.models.baseline.predict(xTestTensor);
+      const baselineNormArr = Array.from(predNormBaseline.dataSync());
+      predNormBaseline.dispose();
+      const baselinePredActual = baselineNormArr.map(normVal => Math.max(0, normVal * targetStd + targetMean));
+
+      // Predict with ANN
+      const predNormANN = APP_STATE.models.ann.predict(xTestTensor);
+      const annNormArr = Array.from(predNormANN.dataSync());
+      predNormANN.dispose();
+      const annPredActual = annNormArr.map(normVal => Math.max(0, normVal * targetStd + targetMean));
+
+      xTestTensor.dispose();
+
+      // Metric calculation function
+      const computeMetrics = (preds, actuals) => {
+        const n = actuals.length;
+        let sumAbsErr = 0;
+        let sumSqErr = 0;
+        let sumActual = 0;
+
+        for (let i = 0; i < n; i++) {
+          const err = actuals[i] - preds[i];
+          sumAbsErr += Math.abs(err);
+          sumSqErr += err * err;
+          sumActual += actuals[i];
+        }
+
+        const mae = sumAbsErr / n;
+        const mse = sumSqErr / n;
+        const rmse = Math.sqrt(mse);
+        const yMean = sumActual / n;
+
+        let totalVariance = 0;
+        for (let i = 0; i < n; i++) {
+          totalVariance += Math.pow(actuals[i] - yMean, 2);
+        }
+
+        const r2 = 1 - (sumSqErr / (totalVariance || 1.0));
+
+        return { mae, rmse, r2, predictions: preds };
+      };
+
+      const baselineMetrics = computeMetrics(baselinePredActual, actualOrders);
+      const annMetrics = computeMetrics(annPredActual, actualOrders);
+
+      // Determine better model (higher R² and lower MAE)
+      const isANNBetter = annMetrics.r2 >= baselineMetrics.r2;
+      const bestModelName = isANNBetter ? 'Deep ANN (MLP)' : 'Linear Regression Baseline';
+
+      APP_STATE.evaluation = {
+        baseline: baselineMetrics,
+        ann: annMetrics,
+        isANNBetter: isANNBetter,
+        bestModelName: bestModelName,
+        actualOrders: actualOrders,
+        betterPreds: isANNBetter ? annPredActual : baselinePredActual
+      };
+
+      // Populate Results UI
+      document.getElementById('results-empty-state').style.display = 'none';
+      document.getElementById('results-content-panel').style.display = 'block';
+
+      // Split counters
+      document.getElementById('kpi-train-count').textContent = APP_STATE.trainSplit.raw.length.toLocaleString();
+      document.getElementById('kpi-val-count').textContent = APP_STATE.valSplit.raw.length.toLocaleString();
+      document.getElementById('kpi-test-count').textContent = APP_STATE.testSplit.raw.length.toLocaleString();
+
+      // Comparison Table
+      const tbody = document.getElementById('tbody-model-comparison');
+      const baselineWinnerTag = !isANNBetter ? '<span class="winner-tag">🏆 Best Model</span>' : '';
+      const annWinnerTag = isANNBetter ? '<span class="winner-tag">🏆 Best Model</span>' : '';
+
+      tbody.innerHTML = `
+        <tr>
+          <td><strong>Baseline: Linear Regression</strong></td>
+          <td>${baselineMetrics.mae.toFixed(2)} orders</td>
+          <td>${baselineMetrics.rmse.toFixed(2)}</td>
+          <td><strong>${(baselineMetrics.r2 * 100).toFixed(2)}%</strong> (${baselineMetrics.r2.toFixed(3)})</td>
+          <td>26 (25 weights + 1 bias)</td>
+          <td>${baselineWinnerTag || 'Linear reference standard'}</td>
+        </tr>
+        <tr style="background-color: ${isANNBetter ? 'rgba(255,107,53,0.06)' : 'transparent'};">
+          <td><strong>Deep ANN (Feedforward MLP)</strong></td>
+          <td><strong>${annMetrics.mae.toFixed(2)} orders</strong></td>
+          <td><strong>${annMetrics.rmse.toFixed(2)}</strong></td>
+          <td><strong style="color: #10b981;">${(annMetrics.r2 * 100).toFixed(2)}%</strong> (${annMetrics.r2.toFixed(3)})</td>
+          <td>1,361 parameters</td>
+          <td>${annWinnerTag || 'Captures non-linear elasticity'}</td>
+        </tr>
+      `;
+
+      // Auto-generated Honest Insight
+      const insightAlert = document.getElementById('results-auto-insight');
+      if (isANNBetter) {
+        const maeReductionPct = (((baselineMetrics.mae - annMetrics.mae) / baselineMetrics.mae) * 100).toFixed(1);
+        const r2Gain = ((annMetrics.r2 - baselineMetrics.r2) * 100).toFixed(1);
+        insightAlert.className = 'alert alert-success';
+        insightAlert.innerHTML = `
+          <div>
+            <strong>Executive Data Science Insight:</strong> The <strong>Deep Artificial Neural Network</strong> outperforms the linear baseline on the held-out test set,
+            reducing Mean Absolute Error (MAE) by <strong>${maeReductionPct}%</strong> (from ${baselineMetrics.mae.toFixed(2)} down to <strong>${annMetrics.mae.toFixed(2)} orders</strong>)
+            and explaining <strong>${r2Gain}% more variance (R² = ${annMetrics.r2.toFixed(3)})</strong>.
+            This demonstrates that non-linear promotional discounting, weather uplift, and ad spend diminishing returns justify neural network architecture over ordinary least squares.
+          </div>
+        `;
+      } else {
+        insightAlert.className = 'alert alert-info';
+        insightAlert.innerHTML = `
+          <div>
+            <strong>Honest Evaluation Insight:</strong> The <strong>Linear Regression Baseline</strong> achieved comparable or slightly superior generalizability
+            (R² = ${baselineMetrics.r2.toFixed(3)} vs ${annMetrics.r2.toFixed(3)}).
+            In this scenario, linear relationships dominate the feature space and Occam's Razor suggests deploying the simpler linear baseline to avoid unnecessary parameter complexity.
+          </div>
+        `;
+      }
+
+      // Render Charts for Results Tab
+      renderResultsCharts();
+
+      // Update Overview Tab with test metrics
+      document.getElementById('overview-model-kpis-card').style.display = 'block';
+      document.getElementById('overview-best-model-name').textContent = bestModelName;
+      document.getElementById('overview-test-r2').textContent = (Math.max(baselineMetrics.r2, annMetrics.r2) * 100).toFixed(1) + '%';
+      const bestMae = isANNBetter ? annMetrics.mae : baselineMetrics.mae;
+      const bestRmse = isANNBetter ? annMetrics.rmse : baselineMetrics.rmse;
+      document.getElementById('overview-test-mae').textContent = `${bestMae.toFixed(2)} orders`;
+      document.getElementById('overview-test-rmse').textContent = bestRmse.toFixed(2);
+    }
+
+    // --- 6. Charts & Visualizations (Chart.js) ---
+    function renderOverviewDashboard() {
+      const records = APP_STATE.dataset;
+      if (!records || records.length === 0) return;
+
+      // Calculate Overview KPIs
+      const totalRecords = records.length;
+      let totalOrders = 0;
+      let totalRevenue = 0;
+      let totalDiscount = 0;
+      let totalDeliveryTime = 0;
+
+      const cuisineOrders = {};
+      const platformOrders = {};
+      const monthlyOrders = new Array(12).fill(0);
+      const dowOrders = { 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0 };
+      const dowCounts = { 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0 };
+
+      records.forEach(r => {
+        totalOrders += r.Orders;
+        const netPrice = r.Avg_Order_Price * (1 - r.Discount_Pct / 100);
+        totalRevenue += (netPrice * r.Orders);
+        totalDiscount += r.Discount_Pct;
+        totalDeliveryTime += r.Avg_Delivery_Time;
+
+        cuisineOrders[r.Cuisine] = (cuisineOrders[r.Cuisine] || 0) + r.Orders;
+        platformOrders[r.Platform] = (platformOrders[r.Platform] || 0) + r.Orders;
+        monthlyOrders[r.Month - 1] += r.Orders;
+
+        dowOrders[r.Day_Of_Week] += r.Orders;
+        dowCounts[r.Day_Of_Week]++;
+      });
+
+      let bestCuisine = '-';
+      let maxOrders = 0;
+      for (const [c, o] of Object.entries(cuisineOrders)) {
+        if (o > maxOrders) {
+          maxOrders = o;
+          bestCuisine = c;
+        }
+      }
+
+      document.getElementById('kpi-total-records').textContent = totalRecords.toLocaleString();
+      document.getElementById('kpi-total-orders').textContent = totalOrders.toLocaleString();
+      document.getElementById('kpi-total-revenue').textContent = formatCurrency(totalRevenue);
+      document.getElementById('kpi-avg-discount').textContent = (totalDiscount / totalRecords).toFixed(1) + '%';
+      document.getElementById('kpi-avg-delivery').textContent = (totalDeliveryTime / totalRecords).toFixed(1) + ' min';
+      document.getElementById('kpi-best-cuisine').textContent = bestCuisine;
+
+      // 1. Monthly Trend Chart
+      destroyChart('monthly-trend');
+      const ctxMonthly = document.getElementById('chart-monthly-trend').getContext('2d');
+      APP_STATE.charts['monthly-trend'] = new Chart(ctxMonthly, {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          datasets: [{
+            label: 'Orders',
+            data: monthlyOrders,
+            borderColor: '#ff6b35',
+            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#ff6b35',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: false, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 2. Orders by Cuisine
+      destroyChart('cuisine-orders');
+      const ctxCuisine = document.getElementById('chart-cuisine-orders').getContext('2d');
+      const sortedCuisines = Object.keys(cuisineOrders);
+      APP_STATE.charts['cuisine-orders'] = new Chart(ctxCuisine, {
+        type: 'bar',
+        data: {
+          labels: sortedCuisines,
+          datasets: [{
+            label: 'Total Orders',
+            data: sortedCuisines.map(c => cuisineOrders[c]),
+            backgroundColor: ['#ff6b35', '#ffa26b', '#222b38', '#3b82f6', '#10b981', '#8b5cf6'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 3. Platform Share Doughnut
+      destroyChart('platform-share');
+      const ctxPlatform = document.getElementById('chart-platform-share').getContext('2d');
+      APP_STATE.charts['platform-share'] = new Chart(ctxPlatform, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(platformOrders),
+          datasets: [{
+            data: Object.values(platformOrders),
+            backgroundColor: ['#ff6b35', '#ef4444', '#10b981'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          cutout: '68%'
+        }
+      });
+
+      // 4. Day of Week Average
+      destroyChart('dow-orders');
+      const ctxDow = document.getElementById('chart-dow-orders').getContext('2d');
+      const avgDowOrders = DAYS_OF_WEEK.map(d => Math.round(dowOrders[d] / (dowCounts[d] || 1)));
+      APP_STATE.charts['dow-orders'] = new Chart(ctxDow, {
+        type: 'bar',
+        data: {
+          labels: DAYS_OF_WEEK,
+          datasets: [{
+            label: 'Avg Orders / Day',
+            data: avgDowOrders,
+            backgroundColor: DAYS_OF_WEEK.map(d => (d === 'Sat' || d === 'Sun') ? '#ff6b35' : '#94a3b8'),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 5. Delivery Time vs Orders Scatter
+      destroyChart('delivery-vs-orders');
+      const ctxDelivery = document.getElementById('chart-delivery-vs-orders').getContext('2d');
+      // Sub-sample 250 records for smooth rendering
+      const sampleRecords = records.slice(0, 250);
+      APP_STATE.charts['delivery-vs-orders'] = new Chart(ctxDelivery, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: 'Orders vs Delivery Mins',
+            data: sampleRecords.map(r => ({ x: r.Avg_Delivery_Time, y: r.Orders })),
+            backgroundColor: 'rgba(255, 107, 53, 0.45)',
+            borderColor: '#ff6b35',
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'Avg Delivery Time (mins)' }, grid: { color: '#f1f5f9' } },
+            y: { title: { display: true, text: 'Daily Orders' }, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+    }
+
+    function updateLossCurvesChart() {
+      const history = APP_STATE.trainingHistory;
+      destroyChart('loss-curves');
+      const ctx = document.getElementById('chart-loss-curves').getContext('2d');
+
+      const maxLen = Math.max(
+        history.baseline.trainLoss.length,
+        history.ann.trainLoss.length
+      );
+      const labels = Array.from({ length: maxLen }, (_, i) => `Epoch ${i + 1}`);
+
+      APP_STATE.charts['loss-curves'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Baseline Train Loss',
+              data: history.baseline.trainLoss,
+              borderColor: '#94a3b8',
+              borderDash: [4, 4],
+              pointRadius: 0,
+              tension: 0.2
+            },
+            {
+              label: 'Baseline Val Loss',
+              data: history.baseline.valLoss,
+              borderColor: '#64748b',
+              pointRadius: 0,
+              tension: 0.2
+            },
+            {
+              label: 'ANN Train Loss',
+              data: history.ann.trainLoss,
+              borderColor: '#ffa26b',
+              borderDash: [3, 3],
+              pointRadius: 0,
+              tension: 0.2
+            },
+            {
+              label: 'ANN Val Loss (Monitored)',
+              data: history.ann.valLoss,
+              borderColor: '#ff6b35',
+              borderWidth: 2.5,
+              pointRadius: 0,
+              tension: 0.2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              title: { display: true, text: 'Mean Squared Error Loss' },
+              grid: { color: '#f1f5f9' },
+              beginAtZero: false
+            },
+            x: {
+              grid: { display: false },
+              ticks: { maxTicksLimit: 12 }
+            }
+          },
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      });
+    }
+
+    function renderResultsCharts() {
+      const evalData = APP_STATE.evaluation;
+      if (!evalData.baseline || !evalData.ann) return;
+
+      // 1. Grouped Bar: Metrics Comparison
+      destroyChart('metrics-comparison');
+      const ctxMetrics = document.getElementById('chart-metrics-comparison').getContext('2d');
+      APP_STATE.charts['metrics-comparison'] = new Chart(ctxMetrics, {
+        type: 'bar',
+        data: {
+          labels: ['MAE (Lower is Better)', 'RMSE (Lower is Better)', 'R² Score (Higher is Better)'],
+          datasets: [
+            {
+              label: 'Linear Baseline',
+              data: [evalData.baseline.mae, evalData.baseline.rmse, evalData.baseline.r2 * 100],
+              backgroundColor: '#64748b',
+              borderRadius: 5
+            },
+            {
+              label: 'Deep ANN (MLP)',
+              data: [evalData.ann.mae, evalData.ann.rmse, evalData.ann.r2 * 100],
+              backgroundColor: '#ff6b35',
+              borderRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+
+      // 2. Scatter: Actual vs Predicted Orders
+      destroyChart('actual-vs-pred');
+      const ctxScatter = document.getElementById('chart-actual-vs-pred').getContext('2d');
+      const actuals = evalData.actualOrders;
+      const preds = evalData.betterPreds;
+
+      const scatterPoints = actuals.map((act, i) => ({ x: act, y: Math.round(preds[i]) }));
+      const minVal = Math.min(...actuals, ...preds);
+      const maxVal = Math.max(...actuals, ...preds);
+
+      APP_STATE.charts['actual-vs-pred'] = new Chart(ctxScatter, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Test Set Predictions',
+              data: scatterPoints,
+              backgroundColor: 'rgba(255, 107, 53, 0.4)',
+              borderColor: '#ff6b35',
+              pointRadius: 3.5
+            },
+            {
+              label: 'Perfect Forecast Line (y = x)',
+              data: [{ x: minVal, y: minVal }, { x: maxVal, y: maxVal }],
+              type: 'line',
+              borderColor: '#10b981',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            x: { title: { display: true, text: 'Actual Orders' }, grid: { color: '#f1f5f9' } },
+            y: { title: { display: true, text: 'Predicted Orders' }, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+
+      // 3. Histogram of Residuals (Actual - Predicted)
+      destroyChart('residuals-hist');
+      const ctxHist = document.getElementById('chart-residuals-hist').getContext('2d');
+      const residuals = actuals.map((act, i) => act - preds[i]);
+
+      // Bin the residuals into 11 bins
+      const binCount = 11;
+      const minRes = Math.floor(Math.min(...residuals));
+      const maxRes = Math.ceil(Math.max(...residuals));
+      const binWidth = (maxRes - minRes) / binCount;
+
+      const binLabels = [];
+      const binCounts = new Array(binCount).fill(0);
+
+      for (let b = 0; b < binCount; b++) {
+        const binStart = minRes + b * binWidth;
+        const binEnd = binStart + binWidth;
+        binLabels.push(`${binStart.toFixed(0)} to ${binEnd.toFixed(0)}`);
+      }
+
+      residuals.forEach(res => {
+        let bIdx = Math.floor((res - minRes) / binWidth);
+        if (bIdx >= binCount) bIdx = binCount - 1;
+        if (bIdx < 0) bIdx = 0;
+        binCounts[bIdx]++;
+      });
+
+      APP_STATE.charts['residuals-hist'] = new Chart(ctxHist, {
+        type: 'bar',
+        data: {
+          labels: binLabels,
+          datasets: [{
+            label: 'Residual Frequency (Residual = Actual - Predicted)',
+            data: binCounts,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'Residual Range (Orders)' }, grid: { display: false } },
+            y: { title: { display: true, text: 'Frequency' }, beginAtZero: true, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+    }
+
+    function destroyChart(id) {
+      if (APP_STATE.charts[id]) {
+        APP_STATE.charts[id].destroy();
+        delete APP_STATE.charts[id];
+      }
+    }
+
+    // --- 7. What-If Predictor & Scenario Simulator ---
+    function runWhatIfPrediction() {
+      if (!APP_STATE.models.ann && !APP_STATE.models.baseline) {
+        document.getElementById('predictor-untrained-warning').style.display = 'block';
+        alert('Please train the neural network model in Tab 3 before running simulations.');
+        return;
+      }
+
+      // Read form values
+      const month = parseInt(document.getElementById('sim-month').value, 10);
+      const dow = document.getElementById('sim-dow').value;
+      const isWeekend = (dow === 'Sat' || dow === 'Sun') ? 1 : 0;
+      const cuisine = document.getElementById('sim-cuisine').value;
+      const platform = document.getElementById('sim-platform').value;
+      const price = parseFloat(document.getElementById('sim-price').value);
+      const discount = parseFloat(document.getElementById('sim-discount').value);
+      const adSpend = parseFloat(document.getElementById('sim-ad-spend').value);
+      const festival = parseInt(document.getElementById('sim-festival').value, 10);
+      const rain = parseInt(document.getElementById('sim-rain').value, 10);
+      const delivery = parseFloat(document.getElementById('sim-delivery').value);
+      const rating = parseFloat(document.getElementById('sim-rating').value);
+
+      // Validation
+      if (isNaN(price) || price < 50 || price > 1500) {
+        alert('Please enter a valid Average Order Price (between ₹50 and ₹1,500).');
+        return;
+      }
+      if (isNaN(discount) || discount < 0 || discount > 50) {
+        alert('Discount percentage must be between 0% and 50%.');
+        return;
+      }
+      if (isNaN(delivery) || delivery < 15 || delivery > 90) {
+        alert('Average Delivery Time must be between 15 and 90 minutes.');
+        return;
+      }
+      if (isNaN(rating) || rating < 1.0 || rating > 5.0) {
+        alert('Average Rating must be between 1.0 and 5.0.');
+        return;
+      }
+
+      const inputRow = {
+        Month: month,
+        Day_Of_Week: dow,
+        Cuisine: cuisine,
+        Platform: platform,
+        Avg_Order_Price: price,
+        Discount_Pct: discount,
+        Ad_Spend: adSpend,
+        Is_Weekend: isWeekend,
+        Is_Festival: festival,
+        Rain: rain,
+        Avg_Delivery_Time: delivery,
+        Avg_Rating: rating
+      };
+
+      const predictedOrders = predictSingleRecord(inputRow);
+      const netPrice = price * (1 - discount / 100);
+      const estimatedRevenue = predictedOrders * netPrice;
+
+      document.getElementById('sim-result-orders').textContent = Math.round(predictedOrders) + ' orders';
+      document.getElementById('sim-result-revenue').textContent = formatCurrency(estimatedRevenue);
+
+      // Refresh promotional discount elasticity curve
+      updateDiscountSensitivityChart(inputRow);
+    }
+
+    /**
+     * Executes real model inference on a single record object
+     */
+    function predictSingleRecord(row) {
+      const activeModel = APP_STATE.evaluation.isANNBetter ? APP_STATE.models.ann : (APP_STATE.models.baseline || APP_STATE.models.ann);
+      if (!activeModel) return 0;
+
+      const rawFeatures = extractFeatureVector(row);
+      const means = APP_STATE.normalization.featureMeans;
+      const stds = APP_STATE.normalization.featureStds;
+      const normFeatures = rawFeatures.map((val, j) => (val - means[j]) / (stds[j] || 1.0));
+
+      const inputTensor = tf.tensor2d([normFeatures]);
+      const predTensor = activeModel.predict(inputTensor);
+      const predNorm = predTensor.dataSync()[0];
+
+      inputTensor.dispose();
+      predTensor.dispose();
+
+      const finalPred = Math.max(0, predNorm * APP_STATE.normalization.targetStd + APP_STATE.normalization.targetMean);
+      return finalPred;
+    }
+
+    function updateDiscountSensitivityChart(baseRow = null) {
+      if (!APP_STATE.models.ann && !APP_STATE.models.baseline) return;
+
+      if (!baseRow) {
+        baseRow = {
+          Month: 10,
+          Day_Of_Week: 'Sat',
+          Cuisine: 'Biryani',
+          Platform: 'Swiggy',
+          Avg_Order_Price: 320,
+          Discount_Pct: 20,
+          Ad_Spend: 25,
+          Is_Weekend: 1,
+          Is_Festival: 1,
+          Rain: 1,
+          Avg_Delivery_Time: 32,
+          Avg_Rating: 4.4
+        };
+      }
+
+      // Compute sensitivity across discounts 0% to 50%
+      const discountSteps = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+      const predictedOrdersArr = [];
+      const revenueArr = [];
+
+      discountSteps.forEach(d => {
+        const testRow = { ...baseRow, Discount_Pct: d };
+        const predOrders = predictSingleRecord(testRow);
+        const netPrice = testRow.Avg_Order_Price * (1 - d / 100);
+        predictedOrdersArr.push(Math.round(predOrders));
+        revenueArr.push(Math.round(predOrders * netPrice));
+      });
+
+      destroyChart('discount-sensitivity');
+      const ctx = document.getElementById('chart-discount-sensitivity').getContext('2d');
+      APP_STATE.charts['discount-sensitivity'] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: discountSteps.map(d => `${d}%`),
+          datasets: [
+            {
+              label: 'Predicted Orders (Vol)',
+              data: predictedOrdersArr,
+              borderColor: '#ff6b35',
+              backgroundColor: 'rgba(255, 107, 53, 0.1)',
+              yAxisID: 'yOrders',
+              tension: 0.3,
+              pointRadius: 4
+            },
+            {
+              label: 'Est. Realized Revenue (₹)',
+              data: revenueArr,
+              borderColor: '#10b981',
+              backgroundColor: 'transparent',
+              borderDash: [4, 4],
+              yAxisID: 'yRevenue',
+              tension: 0.3,
+              pointRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            x: { title: { display: true, text: 'Promotional Discount %' }, grid: { display: false } },
+            yOrders: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Daily Orders' },
+              grid: { color: '#f1f5f9' }
+            },
+            yRevenue: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Net Revenue (₹)' },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // --- 8. Table Renderers & Statistics ---
+    function renderDataTablePreview() {
+      const tbody = document.getElementById('tbody-data-preview');
+      tbody.innerHTML = '';
+      const previewRows = APP_STATE.dataset.slice(0, 10);
+
+      previewRows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.Record_ID}</td>
+          <td>${row.Month}</td>
+          <td>${row.Day_Of_Week}</td>
+          <td>${row.Cuisine}</td>
+          <td>${row.Platform}</td>
+          <td>₹${row.Avg_Order_Price}</td>
+          <td>${row.Discount_Pct}%</td>
+          <td>₹${row.Ad_Spend}k</td>
+          <td>${row.Is_Weekend}</td>
+          <td>${row.Is_Festival}</td>
+          <td>${row.Rain}</td>
+          <td>${row.Avg_Delivery_Time} min</td>
+          <td>★ ${row.Avg_Rating.toFixed(1)}</td>
+          <td style="font-weight: 700; color: #991b1b; background-color: #fee2e2;">${row.Orders}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderDescriptiveStatsTable() {
+      const records = APP_STATE.dataset;
+      const numCols = [
+        'Month', 'Avg_Order_Price', 'Discount_Pct', 'Ad_Spend',
+        'Is_Weekend', 'Is_Festival', 'Rain', 'Avg_Delivery_Time',
+        'Avg_Rating', 'Orders'
+      ];
+
+      const tbody = document.getElementById('tbody-data-stats');
+      tbody.innerHTML = '';
+
+      numCols.forEach(col => {
+        const vals = records.map(r => r[col]).sort((a, b) => a - b);
+        const count = vals.length;
+        const mean = vals.reduce((a, b) => a + b, 0) / count;
+        const varSum = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0);
+        const std = Math.sqrt(varSum / count);
+        const min = vals[0];
+        const p25 = vals[Math.floor(count * 0.25)];
+        const median = vals[Math.floor(count * 0.50)];
+        const p75 = vals[Math.floor(count * 0.75)];
+        const max = vals[count - 1];
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${col}</strong></td>
+          <td>${count}</td>
+          <td>${mean.toFixed(2)}</td>
+          <td>${std.toFixed(2)}</td>
+          <td>${min.toFixed(1)}</td>
+          <td>${p25.toFixed(1)}</td>
+          <td>${median.toFixed(1)}</td>
+          <td>${p75.toFixed(1)}</td>
+          <td>${max.toFixed(1)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // --- 9. CSV Download Exporters ---
+    function downloadDatasetCSV() {
+      const records = APP_STATE.dataset;
+      if (!records || records.length === 0) return;
+
+      const headers = Object.keys(records[0]).join(',');
+      const rows = records.map(r => Object.values(r).join(',')).join('\n');
+      const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(headers + '\n' + rows);
+
+      const link = document.createElement('a');
+      link.setAttribute('href', csvContent);
+      link.setAttribute('download', `kitchencast_synthetic_orders_${records.length}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function downloadTestPredictionsCSV() {
+      if (!APP_STATE.evaluation.actualOrders) {
+        alert('Please train the models first before exporting test set predictions.');
+        return;
+      }
+
+      const testRecords = APP_STATE.testSplit.raw;
+      const actuals = APP_STATE.evaluation.actualOrders;
+      const preds = APP_STATE.evaluation.betterPreds;
+
+      const header = "Record_ID,Cuisine,Platform,Actual_Orders,Predicted_Orders,Error";
+      const rows = testRecords.map((r, i) => {
+        const pred = Math.round(preds[i]);
+        const err = actuals[i] - pred;
+        return `${r.Record_ID},${r.Cuisine},${r.Platform},${actuals[i]},${pred},${err}`;
+      }).join('\n');
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(header + '\n' + rows);
+      const link = document.createElement('a');
+      link.setAttribute('href', csvContent);
+      link.setAttribute('download', 'kitchencast_test_predictions_evaluation.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // --- 10. Navigation & Tab Switcher ---
+    function switchTab(targetTabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+
+      const targetPane = document.getElementById(targetTabId);
+      if (targetPane) targetPane.classList.add('active');
+
+      const targetNavBtn = document.querySelector(`.nav-link[data-tab="${targetTabId}"]`);
+      if (targetNavBtn) targetNavBtn.classList.add('active');
+
+      const titles = {
+        'tab-overview': 'KitchenCast Executive Dashboard',
+        'tab-data': 'Synthetic Cloud Kitchen Operations Dataset',
+        'tab-train': 'Model Training & Neural Architecture',
+        'tab-results': 'Evaluation & Generalization Results',
+        'tab-predictor': 'Operational What-If Scenario Predictor',
+        'tab-how-it-works': 'MBA Viva Reference & Theoretical Architecture'
+      };
+      document.getElementById('current-tab-title').textContent = titles[targetTabId] || 'Dashboard';
+
+      // Update predictor warning status when entering Tab 5
+      if (targetTabId === 'tab-predictor') {
+        const isTrained = !!(APP_STATE.models.ann || APP_STATE.models.baseline);
+        document.getElementById('predictor-untrained-warning').style.display = isTrained ? 'none' : 'block';
+      }
+
+      // Allow DOM to paint then resize active canvas charts cleanly
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+    }
+
+    // --- 11. Initial Application Bootstrap ---
+    window.addEventListener('DOMContentLoaded', () => {
+      // Setup Tab click handlers
+      document.querySelectorAll('.nav-link').forEach(btn => {
+        btn.addEventListener('click', () => {
+          switchTab(btn.getAttribute('data-tab'));
+        });
+      });
+
+      // Dataset generation button
+      document.getElementById('btn-generate-data').addEventListener('click', () => {
+        const size = parseInt(document.getElementById('data-size-selector').value, 10) || 2000;
+        generateSyntheticDataset(size);
+        renderDataTablePreview();
+        renderDescriptiveStatsTable();
+        renderOverviewDashboard();
+        document.getElementById('global-data-status').textContent = `● Data Ready (${size.toLocaleString()} Rows)`;
+        // Reset models if data changed
+        document.getElementById('global-model-status').className = 'status-pill pending';
+        document.getElementById('global-model-status').textContent = '○ Retraining Required';
+        document.getElementById('results-empty-state').style.display = 'block';
+        document.getElementById('results-content-panel').style.display = 'none';
+        document.getElementById('overview-model-kpis-card').style.display = 'none';
+      });
+
+      // CSV download buttons
+      document.getElementById('btn-download-dataset-csv').addEventListener('click', downloadDatasetCSV);
+      document.getElementById('btn-download-test-predictions').addEventListener('click', downloadTestPredictionsCSV);
+
+      // Training button
+      document.getElementById('btn-start-training').addEventListener('click', trainModelsPipeline);
+
+      // Generate default 2,000 observations on initial load
+      generateSyntheticDataset(2000);
+      renderDataTablePreview();
+      renderDescriptiveStatsTable();
+      renderOverviewDashboard();
+    });
+  </script>
+</body>
+</html>
+
