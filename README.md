@@ -37,21 +37,52 @@ Cloud kitchen businesses (operating exclusively via aggregators like Swiggy, Zom
 
 ---
 
-## 🛠️ Technology Stack
-- **Architecture:** Zero-backend, 100% standalone single-file application (`index.html`).
+## 🛠️ Technology Stack & Execution Options
+
+This repository provides **two deployment and execution options**:
+
+### Option A: Standalone In-Browser Dashboard (`index.html`)
+- **Zero-backend:** 100% standalone single-file application (`index.html`).
 - **Machine Learning Engine:** [TensorFlow.js](https://www.tensorflow.org/js) (v4.17.0 via CDN).
 - **Interactive Visualizations:** [Chart.js](https://www.chartjs.org/) (v4.4.1 via CDN).
-- **Styling:** Custom modern executive dashboard design (Saffron Orange & Dark Charcoal palette, responsive CSS Grid / Flexbox).
-- **Fonts:** Inter & JetBrains Mono (Google Fonts).
+- **Run:** Double-click `index.html` in any browser.
+
+### Option B: Python Backend, Pickles & Cloud Deployment (`main.py` & `Procfile`)
+- **Python ML Engine:** `scikit-learn` (`LinearRegression`, `MLPRegressor`).
+- **Data & Visualizations:** `pandas`, `numpy`, `plotly`, `streamlit`.
+- **Model Artifacts (Pickle):**
+  - `linear_model.pkl`: Baseline Linear Regression model.
+  - `ann_model.pkl`: Deep Feedforward Artificial Neural Network (MLP) model.
+  - `scaler.pkl`: StandardScaler fitted strictly on training data.
+  - `kitchencast_models.pkl`: Unified bundle with models, scaler, metadata, and test metrics.
+- **Cloud Deployment:** `Procfile` configured for one-click deployment on Heroku, Render, Railway, or Streamlit Cloud.
+- **CLI Model Training:** `python main.py`
+- **Interactive Streamlit Web Dashboard:** `streamlit run main.py`
 
 ---
 
-## 🏃 How to Run the Application
+## 🏃 How to Run the Applications
 
-No Python, Node.js, database, or server installation is required.
+### 1. Browser Client (`index.html`)
+- Simply double-click `index.html` in your browser.
 
-1. Double-click or open `index.html` in any modern web browser (Google Chrome, Microsoft Edge, Mozilla Firefox, or Safari).
-2. *Note:* An internet connection is required only to load the TensorFlow.js and Chart.js CDNs on initial page load.
+### 2. Python Model Builder & Serializer (`main.py`)
+```bash
+python main.py
+```
+*Trains both models, evaluates them on the held-out test split, and regenerates all `.pkl` files.*
+
+### 3. Streamlit Cloud / Local Web Dashboard
+```bash
+streamlit run main.py
+```
+
+### 4. Cloud Deployment via `Procfile`
+The included `Procfile` defines:
+```
+web: streamlit run main.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+```
+Ready to deploy on Heroku, Render, Railway, or Scalingo.
 
 ---
 
